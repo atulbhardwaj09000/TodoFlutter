@@ -2,9 +2,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_assignment/common/constant.dart';
 import 'package:flutter_assignment/model/home_list_model.dart';
+import 'package:flutter_assignment/network/live_data_manager.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:refreshable_reorderable_list/refreshable_reorderable_list.dart';
+
+import 'edit_task_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,7 +15,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  var databaseReference = FirebaseDatabase.instance.reference();
+  LiveDataManager liveDataManager = LiveDataManager();
   List<HomeListModel> homeList = [];
 
   @override
@@ -31,7 +34,23 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            openInputScreen(context);
+            //openInputScreen(context);
+            showGeneralDialog(
+              context: context,
+              barrierDismissible: false,
+              barrierLabel: "Dialog",
+              transitionDuration: Duration(milliseconds: 200),
+              pageBuilder: (_, __, ___) {
+                // widget implementation
+                return NewTaskWidget(
+                    onTaskSubmitted: (String submittedText) async {
+                  // Open add new task dialog
+                  //
+                  openInputScreen(context, submittedText);
+                  Navigator.pop(context);
+                });
+              },
+            );
           },
           child: RefreshableReorderableListView(
             onReorder: _onReorder,
@@ -168,37 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void deleteData(String id, int index) {
-    databaseReference.child(FLUTTER).child(id).remove();
-    setState(() {
-      homeList.removeAt(index);
-    });
-  }
-
-  void updateData(String id, int index) {
-    databaseReference.child(FLUTTER).child(id).update({POSITION: index});
-  }
-
-  void completeData(String id, int index) {
-    int lastItemPosition = homeList.last.position;
-    int newPosition = lastItemPosition >= 0 ? -1 : lastItemPosition - 1;
-
-    setState(() {
-      final HomeListModel item = homeList.removeAt(index);
-      item.completed = true;
-      item.position = newPosition;
-      homeList.add(item);
-    });
-    databaseReference
-        .child(FLUTTER)
-        .child(id)
-        .update({COMPLETED: true, POSITION: newPosition});
-  }
-
-  void openInputScreen(
-    BuildContext context,
-  ) async {
-    final result = await Navigator.pushNamed(context, INPUT_SCREEN);
+  void openInputScreen(BuildContext context, String result) {
+    //final result = await Navigator.pushNamed(context, INPUT_SCREEN);
     if (result != null && result.toString().trim().length > 0) {
       int position =
           homeList.length == 0 ? 0 : (homeList.first.position + DISTANCE);
@@ -212,16 +202,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void sendData(String task, bool isDisabled, int position, String id) {
-    databaseReference
-        .child(FLUTTER)
-        .child(id)
-        .set({TASK: task, COMPLETED: false, POSITION: position, ID: id});
-  }
-
   void readData() async {
-    //databaseReference = FirebaseDatabase.instance.reference();
-    DataSnapshot snapshot = await databaseReference.once();
+    DataSnapshot snapshot = await liveDataManager.readData();
     print('Data : ${snapshot.value}');
     if (snapshot.value != null) {
       var map = snapshot.value[FLUTTER];
@@ -238,6 +220,33 @@ class _HomeScreenState extends State<HomeScreen> {
           gravity: ToastGravity.CENTER,
           toastLength: Toast.LENGTH_LONG);
     }
+  }
+
+  void sendData(String task, bool isDisabled, int position, String id) async {
+    await liveDataManager.sendData(task, isDisabled, position, id);
+  }
+
+  void deleteData(String id, int index) async {
+    setState(() {
+      homeList.removeAt(index);
+    });
+    await liveDataManager.deleteData(id, index);
+  }
+
+  void updateData(String id, int index) async {
+    await liveDataManager.updateData(id, index);
+  }
+
+  void completeData(String id, int index) async {
+    int lastItemPosition = homeList.last.position;
+    int newPosition = lastItemPosition >= 0 ? -1 : lastItemPosition - 1;
+    setState(() {
+      final HomeListModel item = homeList.removeAt(index);
+      item.completed = true;
+      item.position = newPosition;
+      homeList.add(item);
+    });
+    await liveDataManager.completeData(id, newPosition);
   }
 
   void sort() {
