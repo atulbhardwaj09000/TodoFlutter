@@ -42,12 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
               transitionDuration: Duration(milliseconds: 200),
               pageBuilder: (_, __, ___) {
                 // widget implementation
-                return NewTaskWidget(
-                    onTaskSubmitted: (String submittedText) async {
-                  // Open add new task dialog
-                  //
-                  openInputScreen(context, submittedText);
+                return NewTaskWidget(onTaskSubmitted: (String submittedText) {
                   Navigator.pop(context);
+                  openInputScreen(context, submittedText);
                 });
               },
             );
@@ -69,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   actionExtentRatio: 0.25,
                   child: Container(
                     color: completed
-                        ? (Colors.green[-item.position % 9 * 100])
+                        ? (Colors.green[100 + (-item.position % 9) * 100])
                         : Colors.deepOrange[100 + index % 9 * 100],
                     child: ListTile(
                       onLongPress: completed ? () {} : null,
