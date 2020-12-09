@@ -247,6 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void sort() {
+    //Reverse the list to show in reverse order
     homeList.sort((a, b) {
       var aPosition = a.position;
       var bPosition = b.position;
